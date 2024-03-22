@@ -1,0 +1,6 @@
+[submodule "externals/volk"]
+	path = externals/volk
+	url = https://github.com/zeux/volk
+[submodule "externals/glfw"]
+	path = externals/glfw
+	url = https://github.com/glfw/glfw
