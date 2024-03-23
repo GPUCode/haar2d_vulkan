@@ -1,18 +1,17 @@
 #include <stdio.h>
 #include "vk_pipeline.h"
 #include "vk_device.h"
-#include "haar2d_hor_comp_spv.h"
 
 void create_pipeline(const struct VkContext* context, struct VkCompPipeline* out_pipeline,
-                     VkDescriptorSetLayout desc_layout) {
+                     VkDescriptorSetLayout desc_layout, const uint32_t* code, uint32_t code_size) {
     out_pipeline->context = context;
 
     const VkShaderModuleCreateInfo shader_ci = {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .pNext = NULL,
         .flags = 0,
-        .codeSize = sizeof(HAAR2D_HOR_COMP_SPV),
-        .pCode = HAAR2D_HOR_COMP_SPV,
+        .codeSize = code_size,
+        .pCode = code,
     };
     VkResult result = vkCreateShaderModule(context->device, &shader_ci, NULL, &out_pipeline->shader_module);
     if (result != VK_SUCCESS) {
@@ -23,7 +22,7 @@ void create_pipeline(const struct VkContext* context, struct VkCompPipeline* out
     const VkPushConstantRange push_range = {
         .stageFlags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         .offset = 0U,
-        .size = sizeof(int32_t) * 2,
+        .size = sizeof(int32_t),
     };
 
     const VkPipelineLayoutCreateInfo layout_ci = {
@@ -31,7 +30,7 @@ void create_pipeline(const struct VkContext* context, struct VkCompPipeline* out
         .pNext = NULL,
         .setLayoutCount = 1U,
         .pSetLayouts = &desc_layout,
-        .pushConstantRangeCount = /*1U*/0U,
+        .pushConstantRangeCount = 1U,
         .pPushConstantRanges = &push_range,
     };
     result = vkCreatePipelineLayout(context->device, &layout_ci, NULL, &out_pipeline->layout);

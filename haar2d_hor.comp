@@ -4,13 +4,20 @@ layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
 layout (binding = 0, rgba8) uniform image2D texture;
 
+layout(push_constant) uniform ComputeInfo {
+    int level;
+};
+
 void main() {
+    int mul = int(pow(2, level + 1));
+    int offset = int(pow(2, level));
+
     // Load the pixels in the current 2x2 block.
-    ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * 2;
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * mul;
     vec4 a = imageLoad(texture, coord);
-    vec4 b = imageLoad(texture, coord + ivec2(1, 0));
-    vec4 c = imageLoad(texture, coord + ivec2(0, 1));
-    vec4 d = imageLoad(texture, coord + ivec2(1, 1));
+    vec4 b = imageLoad(texture, coord + ivec2(offset, 0));
+    vec4 c = imageLoad(texture, coord + ivec2(0, offset));
+    vec4 d = imageLoad(texture, coord + ivec2(offset, offset));
 
     // Compute averages between the pixels.
     vec4 ll = (a + b + c + d) / 4.0;
@@ -18,7 +25,7 @@ void main() {
     vec4 hl = (a + b - c - d) / 4.0;
     vec4 hh = (a - b - c + d) / 4.0;
     imageStore(texture, coord, ll);
-    imageStore(texture, coord + ivec2(1, 0), lh);
-    imageStore(texture, coord + ivec2(1, 0), hl);
-    imageStore(texture, coord + ivec2(1, 1), hh);
+    imageStore(texture, coord + ivec2(offset, 0), lh);
+    imageStore(texture, coord + ivec2(0, offset), hl);
+    imageStore(texture, coord + ivec2(offset, offset), hh);
 }

@@ -7,6 +7,7 @@
 #include "vk_image.h"
 #include "vk_pipeline.h"
 #include "stb_image.h"
+#include "haar2d_hor_comp_spv.h"
 #include <GLFW/glfw3.h>
 
 #define WIDTH 800
@@ -37,7 +38,7 @@ int main() {
     create_context(&context);
     create_window(&context, &window, WIDTH, HEIGHT);
     create_texture(&context, &texture, WIDTH, HEIGHT, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM);
-    create_pipeline(&context, &pipeline, texture.desc_layout);
+    create_pipeline(&context, &pipeline, texture.desc_layout, HAAR2D_HOR_COMP_SPV, sizeof(HAAR2D_HOR_COMP_SPV));
 
     // Make command pool to allocate command buffers.
     const VkCommandPoolCreateInfo command_pool_ci = {
@@ -140,7 +141,14 @@ int main() {
                                     &desc_sets[window.frame_index], 0U, NULL);
             vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
 
-            vkCmdDispatch(cmdbuf, WIDTH / 2, HEIGHT / 2, 1);
+            uint32_t width = WIDTH / 2;
+            uint32_t height = HEIGHT / 2;
+            for (uint32_t i = 0; i < 2; i++) {
+                vkCmdPushConstants(cmdbuf, pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(int32_t), &i);
+                vkCmdDispatch(cmdbuf, width, width, 1);
+                width /= 2;
+                height /= 2;
+            }
             texture_initialized = true;
         }
 
