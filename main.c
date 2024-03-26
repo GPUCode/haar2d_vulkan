@@ -141,13 +141,14 @@ int main() {
                                     &desc_sets[window.frame_index], 0U, NULL);
             vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
 
-            uint32_t width = WIDTH / 2;
-            uint32_t height = HEIGHT / 2;
-            for (uint32_t i = 0; i < 2; i++) {
-                vkCmdPushConstants(cmdbuf, pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(int32_t), &i);
-                vkCmdDispatch(cmdbuf, width, width, 1);
-                width /= 2;
-                height /= 2;
+            uint32_t width = WIDTH / 4;
+            uint32_t height = HEIGHT / 4;
+            for (uint32_t i = 0; i < 1; i++) {
+                struct PushConstants con = {.block_dim = 2, .level = i};
+                vkCmdPushConstants(cmdbuf, pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(con), &con);
+                vkCmdDispatch(cmdbuf, width, height, 1);
+                width /= 4;
+                height /= 4;
             }
             texture_initialized = true;
         }
@@ -184,26 +185,25 @@ int main() {
                              VK_DEPENDENCY_BY_REGION_BIT, 0U, NULL, 0U, NULL, 2U, image_barriers);
 
         // Copy the resulting image to the swapchain. The format is the same with the swapchain.
-        const VkImageCopy image_copy = {
+        const VkImageBlit image_copy = {
             .srcSubresource = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .mipLevel = 0,
                 .baseArrayLayer = 0,
                 .layerCount = 1U,
             },
-            .srcOffset = {0, 0, 0},
+            .srcOffsets = {{0, 0, 0}, {WIDTH, HEIGHT, 1}},
             .dstSubresource = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .mipLevel = 0,
                 .baseArrayLayer = 0,
                 .layerCount = 1U,
             },
-            .dstOffset = {0, 0, 0},
-            .extent = {WIDTH, HEIGHT, 1},
+            .dstOffsets = {{0, 0, 0}, {WIDTH, HEIGHT, 1}},
         };
-        vkCmdCopyImage(cmdbuf, texture.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        vkCmdBlitImage(cmdbuf, texture.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                        window.images[window.frame_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                       1U, &image_copy);
+                       1U, &image_copy, VK_FILTER_NEAREST);
 
         // Transition to presentation layout after we are done.
         image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;

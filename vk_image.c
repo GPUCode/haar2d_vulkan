@@ -56,7 +56,7 @@ void create_texture(struct VkContext* context, struct VkTexture* out_texture,
     VkMemoryAllocateInfo allocate_info = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = requirements.size,
-        .memoryTypeIndex = find_memory_type(&properties, requirements.memoryTypeBits),
+        .memoryTypeIndex = find_memory_type(&properties, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
 
     result = vkAllocateMemory(context->device, &allocate_info, NULL, &out_texture->image_memory);

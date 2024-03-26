@@ -25,9 +25,14 @@ VkFormat find_present_format(VkPhysicalDevice physical_device, VkSurfaceKHR surf
 
     // Try to find if the physical device supports VK_FORMAT_R8G8B8A8_UNORM.
     for (uint32_t i = 0; i < num_surface_formats; i++) {
-        if (formats[i].format == VK_FORMAT_R8G8B8A8_UNORM) {
+        printf("Considering surface format = %d\n", formats[i].format);
+        //if (formats[i].format == VK_FORMAT_R8G8B8A8_UNORM) {
+        //    free(formats);
+        //    return VK_FORMAT_R8G8B8A8_UNORM;
+        //}
+        if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM) {
             free(formats);
-            return VK_FORMAT_R8G8B8A8_UNORM;
+            return VK_FORMAT_B8G8R8A8_UNORM;
         }
     }
 
@@ -70,12 +75,14 @@ void create_window(const struct VkContext* context_, struct VkWindow* out_window
         image_count = clamp(image_count, 0, capabilities.maxImageCount);
     }
 
+    out_window->format = find_present_format(context->physical_device, surface);
+
     const VkSwapchainCreateInfoKHR swapchain_ci = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = NULL,
         .surface = surface,
         .minImageCount = num_images,
-        .imageFormat = find_present_format(context->physical_device, surface),
+        .imageFormat = out_window->format,
         .imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR,
         .imageExtent = extent,
         .imageArrayLayers = 1,
@@ -93,7 +100,11 @@ void create_window(const struct VkContext* context_, struct VkWindow* out_window
 
     // Create swapchain.
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-    vkCreateSwapchainKHR(context->device, &swapchain_ci, NULL, &swapchain);
+    result = vkCreateSwapchainKHR(context->device, &swapchain_ci, NULL, &swapchain);
+    if (result != VK_SUCCESS) {
+        printf("Unable to create swapchain with result %d\b", result);
+        return;
+    }
 
     // Query the image handles.
     uint32_t num_swapchain_images = 0;

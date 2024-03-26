@@ -1,31 +1,44 @@
 #version 450 core
 
-layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
 
 layout (binding = 0, rgba8) uniform image2D texture;
 
-layout(push_constant) uniform ComputeInfo {
+layout(push_constant, std140) uniform ComputeInfo {
     int level;
+    int block_dim;
 };
 
+void perform_haar_transform(int dim) {
+    int off = int(pow(block_dim, level)); // 4
+    const int block_offset = int(pow(block_dim, level + 1));
+    int offset = dim >> 1;
+    for (int y = 0; y < block_dim * off; y += dim) {
+        for (int x = 0; x < block_dim * off; x += dim) {
+            ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * block_offset + ivec2(x, y);
+
+            // Load the pixels in the current dimXdim block.
+            vec4 a = imageLoad(texture, coord);
+            vec4 b = imageLoad(texture, coord + ivec2(offset, 0));
+            vec4 c = imageLoad(texture, coord + ivec2(0, offset));
+            vec4 d = imageLoad(texture, coord + ivec2(offset, offset));
+
+            // Compute averages between the pixels.
+            vec4 ll = (a + b + c + d) / 4.0;
+            vec4 lh = (a - b + c - d) / 4.0;
+            vec4 hl = (a + b - c - d) / 4.0;
+            vec4 hh = (a - b - c + d) / 4.0;
+            imageStore(texture, coord, ll);
+            imageStore(texture, coord + ivec2(offset, 0), lh);
+            imageStore(texture, coord + ivec2(0, offset), hl);
+            imageStore(texture, coord + ivec2(offset, offset), hh);
+        }
+    }
+}
+
 void main() {
-    int mul = int(pow(2, level + 1));
-    int offset = int(pow(2, level));
-
-    // Load the pixels in the current 2x2 block.
-    ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * mul;
-    vec4 a = imageLoad(texture, coord);
-    vec4 b = imageLoad(texture, coord + ivec2(offset, 0));
-    vec4 c = imageLoad(texture, coord + ivec2(0, offset));
-    vec4 d = imageLoad(texture, coord + ivec2(offset, offset));
-
-    // Compute averages between the pixels.
-    vec4 ll = (a + b + c + d) / 4.0;
-    vec4 lh = (a - b + c - d) / 4.0;
-    vec4 hl = (a + b - c - d) / 4.0;
-    vec4 hh = (a - b - c + d) / 4.0;
-    imageStore(texture, coord, ll);
-    imageStore(texture, coord + ivec2(offset, 0), lh);
-    imageStore(texture, coord + ivec2(0, offset), hl);
-    imageStore(texture, coord + ivec2(offset, offset), hh);
+    int offset = int(pow(block_dim, level)); // 4
+    for (int i = 2 * offset; i <= block_dim * offset; i <<= 1) {
+        perform_haar_transform(i);
+    }
 }

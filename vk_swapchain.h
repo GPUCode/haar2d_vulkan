@@ -18,6 +18,7 @@ struct VkWindow {
     VkFence* fences;
     uint32_t frame_index;
     uint32_t image_index;
+    VkFormat format;
 };
 
 void create_window(const struct VkContext* context, struct VkWindow* out_window,
