@@ -84,7 +84,7 @@ void create_context(struct VkContext* out_context) {
     VkPhysicalDevice physical_devices[MAX_PHYSICAL_DEVICES];
     vkEnumeratePhysicalDevices(instance, &num_physical_devices, physical_devices);
 
-    const uint32_t index = 0;
+    const uint32_t index = 1;
     const uint32_t queue_family_index = get_queue_family(physical_devices[index]);
     const VkDevice device = create_device(physical_devices[index], queue_family_index);
 

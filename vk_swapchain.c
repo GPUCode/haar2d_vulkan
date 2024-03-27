@@ -58,7 +58,6 @@ void create_window(const struct VkContext* context_, struct VkWindow* out_window
     }
 
     const uint32_t queue_family_indices[] = { context->queue_family, context->queue_family };
-    const uint32_t num_images = 3;
 
     VkSurfaceCapabilitiesKHR capabilities = {};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physical_device, surface, &capabilities);
@@ -81,7 +80,7 @@ void create_window(const struct VkContext* context_, struct VkWindow* out_window
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = NULL,
         .surface = surface,
-        .minImageCount = num_images,
+        .minImageCount = image_count,
         .imageFormat = out_window->format,
         .imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR,
         .imageExtent = extent,

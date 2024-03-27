@@ -136,6 +136,10 @@ int main() {
             // Upload test image to vulkan image.
             upload_image_data(cmdbuf, data, width * height * num_channels, &texture);
 
+            transition_layout(cmdbuf, &texture, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_TRANSFER_WRITE_BIT,
+                              VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+                              VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+
             // Bind descriptor sets and pipeline.
             vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.layout, 0U, 1U,
                                     &desc_sets[window.frame_index], 0U, NULL);
@@ -144,7 +148,7 @@ int main() {
             uint32_t width = WIDTH / 4;
             uint32_t height = HEIGHT / 4;
             for (uint32_t i = 0; i < 1; i++) {
-                struct PushConstants con = {.block_dim = 2, .level = i};
+                struct PushConstants con = {.block_dim = 4, .level = i};
                 vkCmdPushConstants(cmdbuf, pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(con), &con);
                 vkCmdDispatch(cmdbuf, width, height, 1);
                 width /= 4;
@@ -164,13 +168,13 @@ int main() {
                 .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = window.images[window.image_index],
+                .image = window.images[window.frame_index],
                 .subresourceRange = range,
             },
             // Image barrier for the storage image.
             [1] = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT,
                 .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
                 .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
                 .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -181,7 +185,8 @@ int main() {
             }
         };
 
-        vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
                              VK_DEPENDENCY_BY_REGION_BIT, 0U, NULL, 0U, NULL, 2U, image_barriers);
 
         // Copy the resulting image to the swapchain. The format is the same with the swapchain.

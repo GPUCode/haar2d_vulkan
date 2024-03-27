@@ -20,7 +20,7 @@ void create_pipeline(const struct VkContext* context, struct VkCompPipeline* out
     }
 
     const VkPushConstantRange push_range = {
-        .stageFlags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
         .offset = 0U,
         .size = sizeof(struct PushConstants),
     };
