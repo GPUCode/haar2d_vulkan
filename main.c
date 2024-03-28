@@ -145,14 +145,12 @@ int main() {
                                     &desc_sets[window.frame_index], 0U, NULL);
             vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
 
-            uint32_t width = WIDTH / 4;
-            uint32_t height = HEIGHT / 4;
+            uint32_t width = WIDTH / 32;
+            uint32_t height = HEIGHT / 32;
             for (uint32_t i = 0; i < 1; i++) {
-                struct PushConstants con = {.block_dim = 4, .level = i};
+                struct PushConstants con = {.block_dim = 32, .level = i};
                 vkCmdPushConstants(cmdbuf, pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(con), &con);
                 vkCmdDispatch(cmdbuf, width, height, 1);
-                width /= 4;
-                height /= 4;
             }
             texture_initialized = true;
         }
