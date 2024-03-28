@@ -60,9 +60,23 @@ VkDevice create_device(VkPhysicalDevice physical_device, uint32_t graphics_queue
     };
 
     const char* device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    const VkPhysicalDeviceImageRobustnessFeatures robustness_features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_ROBUSTNESS_FEATURES,
+        .pNext = NULL,
+        .robustImageAccess = VK_TRUE,
+    };
+
+    const VkPhysicalDeviceFeatures2 features2 = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext = &robustness_features,
+        .features = {
+            .robustBufferAccess = VK_TRUE,
+        },
+    };
+
     const VkDeviceCreateInfo device_create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pNext = NULL,
+        .pNext = &features2,
         .queueCreateInfoCount	= 1,
         .pQueueCreateInfos = &queue_create_info,
         .enabledExtensionCount = 1,
