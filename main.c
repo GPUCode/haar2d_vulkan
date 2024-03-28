@@ -147,8 +147,8 @@ int main() {
 
             uint32_t width = WIDTH / 32;
             uint32_t height = HEIGHT / 32;
-            for (uint32_t i = 0; i < 1; i++) {
-                struct PushConstants con = {.block_dim = 32, .level = i};
+            for (uint32_t i = 0; i < 2; i++) {
+                struct PushConstants con = {.block_dim = 128, .level = i};
                 vkCmdPushConstants(cmdbuf, pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(con), &con);
                 vkCmdDispatch(cmdbuf, width, height, 1);
             }

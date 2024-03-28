@@ -77,7 +77,7 @@ VkDevice create_device(VkPhysicalDevice physical_device, uint32_t graphics_queue
     const VkDeviceCreateInfo device_create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext = &features2,
-        .queueCreateInfoCount	= 1,
+        .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queue_create_info,
         .enabledExtensionCount = 1,
         .ppEnabledExtensionNames = device_extensions,
@@ -98,7 +98,7 @@ void create_context(struct VkContext* out_context) {
     VkPhysicalDevice physical_devices[MAX_PHYSICAL_DEVICES];
     vkEnumeratePhysicalDevices(instance, &num_physical_devices, physical_devices);
 
-    const uint32_t index = 1;
+    const uint32_t index = 0;
     const uint32_t queue_family_index = get_queue_family(physical_devices[index]);
     const VkDevice device = create_device(physical_devices[index], queue_family_index);
 

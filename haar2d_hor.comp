@@ -9,39 +9,11 @@ layout(push_constant, std140) uniform ComputeInfo {
     int block_dim;
 };
 
-void perform_haar_transform(int dim) {
-    int off = int(pow(block_dim, level));
-    const int block_offset = int(pow(block_dim, level + 1));
-    int p_offset = dim >> 1;
-    for (int y = 0; y < block_dim * off; y += dim) {
-        for (int x = 0; x < block_dim * off; x += dim) {
-            ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * block_offset + ivec2(x, y);
-
-            // Load the pixels in the current dimXdim block.
-            vec4 a = imageLoad(texture, coord);
-            vec4 b = imageLoad(texture, coord + ivec2(p_offset, 0));
-            vec4 c = imageLoad(texture, coord + ivec2(0, p_offset));
-            vec4 d = imageLoad(texture, coord + ivec2(p_offset, p_offset));
-
-            // Compute averages between the pixels.
-            vec4 ll = (a + b + c + d) / 4.0;
-            vec4 lh = (a - b + c - d) / 4.0;
-            vec4 hl = (a + b - c - d) / 4.0;
-            vec4 hh = (a - b - c + d) / 4.0;
-            imageStore(texture, coord, ll);
-            imageStore(texture, coord + ivec2(p_offset, 0), lh);
-            imageStore(texture, coord + ivec2(0, p_offset), hl);
-            imageStore(texture, coord + ivec2(p_offset, p_offset), hh);
-        }
-    }
-}
-
-void haar_block_x_axis(int dim, int offset) {
-    const int block_offset = offset * block_dim;
+void haar_block_x_axis(int dim) {
     const int p_offset = dim >> 1;
-    for (int y = 0; y < block_offset; y++) {
-        for (int x = 0; x < block_offset; x += dim) {
-            ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * block_offset + ivec2(x, y);
+    for (int y = 0; y < block_dim; y++) {
+        for (int x = 0; x < block_dim; x += dim) {
+            ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * block_dim + ivec2(x, y);
 
             // Load the pixels in the current dimXdim block.
             vec4 a = imageLoad(texture, coord);
@@ -56,12 +28,11 @@ void haar_block_x_axis(int dim, int offset) {
     }
 }
 
-void haar_block_y_axis(int dim, int offset) {
-    const int block_offset = offset * block_dim;
+void haar_block_y_axis(int dim) {
     const int p_offset = dim >> 1;
-    for (int x = 0; x < block_offset; x++) {
-        for (int y = 0; y < block_offset; y += dim) {
-            ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * block_offset + ivec2(x, y);
+    for (int x = 0; x < block_dim; x++) {
+        for (int y = 0; y < block_dim; y += dim) {
+            ivec2 coord = ivec2(gl_GlobalInvocationID.xy) * block_dim + ivec2(x, y);
 
             // Load the pixels in the current dimXdim block.
             vec4 a = imageLoad(texture, coord);
@@ -77,11 +48,7 @@ void haar_block_y_axis(int dim, int offset) {
 }
 
 void main() {
-    int offset = int(pow(block_dim, level));
-    for (int i = 2 * offset; i <= block_dim * offset; i <<= 1) {
-        haar_block_x_axis(i, offset);
-    }
-    for (int i = 2 * offset; i <= block_dim * offset; i <<= 1) {
-        haar_block_y_axis(i, offset);
-    }
+    int dim = int(pow(2, level + 1));
+    haar_block_x_axis(dim);
+    haar_block_y_axis(dim);
 }
