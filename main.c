@@ -8,6 +8,7 @@
 #include "vk_pipeline.h"
 #include "stb_image.h"
 #include "haar2d_hor_comp_spv.h"
+#include "deinterleave_comp_spv.h"
 #include <GLFW/glfw3.h>
 
 #define WIDTH 800
@@ -34,11 +35,15 @@ int main() {
     struct VkContext context = {};
     struct VkWindow window = {};
     struct VkTexture texture = {};
+    struct VkTexture texture_de = {};
     struct VkCompPipeline pipeline = {};
+    struct VkCompPipeline d_pipeline = {};
     create_context(&context);
     create_window(&context, &window, WIDTH, HEIGHT);
     create_texture(&context, &texture, WIDTH, HEIGHT, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM);
+    create_texture(&context, &texture_de, WIDTH, HEIGHT, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM);
     create_pipeline(&context, &pipeline, texture.desc_layout, HAAR2D_HOR_COMP_SPV, sizeof(HAAR2D_HOR_COMP_SPV));
+    create_pipeline(&context, &d_pipeline, texture.desc_layout_2, DEINTERLEAVE_COMP_SPV, sizeof(DEINTERLEAVE_COMP_SPV));
 
     // Make command pool to allocate command buffers.
     const VkCommandPoolCreateInfo command_pool_ci = {
@@ -75,24 +80,25 @@ int main() {
     vkCreateDescriptorPool(context.device, &descriptor_pool_ci, NULL, &desc_pool);
 
     // Allocate one descriptor for each frame.
-    VkDescriptorSetLayout layouts[MAX_FRAMES];
-    for (uint32_t i = 0; i < window.num_images; ++i) {
-        layouts[i] = texture.desc_layout;
-    }
-
-    const VkDescriptorSetAllocateInfo allocate_info = {
+    VkDescriptorSetAllocateInfo allocate_info = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .pNext = NULL,
         .descriptorPool = desc_pool,
-        .descriptorSetCount = window.num_images,
-        .pSetLayouts = layouts,
+        .descriptorSetCount = 1U,
+        .pSetLayouts = &texture.desc_layout,
     };
 
-    VkDescriptorSet desc_sets[MAX_FRAMES];
-    vkAllocateDescriptorSets(context.device, &allocate_info, desc_sets);
+    VkDescriptorSet desc_set;
+    vkAllocateDescriptorSets(context.device, &allocate_info, &desc_set);
+
+    VkDescriptorSet desc_set_2;
+    allocate_info.pSetLayouts = &texture.desc_layout_2;
+    vkAllocateDescriptorSets(context.device, &allocate_info, &desc_set_2);
 
     // Update allocated sets with our image.
-    write_as_storage_descriptor(window.num_images, desc_sets, &texture);
+    const struct VkTexture* textures[2] = {&texture, &texture_de};
+    write_as_storage_descriptor(desc_set, textures, 1U);
+    write_as_storage_descriptor(desc_set_2, textures, 2U);
 
     // Load test image
     int32_t width, height, num_channels;
@@ -132,6 +138,8 @@ int main() {
         if (!texture_initialized) {
             transition_layout(cmdbuf, &texture, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_NONE, VK_ACCESS_NONE,
                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+            transition_layout(cmdbuf, &texture_de, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_NONE, VK_ACCESS_NONE,
+                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
             // Upload test image to vulkan image.
             upload_image_data(cmdbuf, data, width * height * num_channels, &texture);
@@ -142,20 +150,30 @@ int main() {
 
             // Bind descriptor sets and pipeline.
             vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.layout, 0U, 1U,
-                                    &desc_sets[window.frame_index], 0U, NULL);
+                                    &desc_set, 0U, NULL);
             vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
 
-            uint32_t width = WIDTH / 32;
-            uint32_t height = HEIGHT / 32;
-            for (uint32_t i = 0; i < 2; i++) {
-                struct PushConstants con = {.block_dim = 128, .level = i};
+            uint32_t width = WIDTH / 8;
+            uint32_t height = HEIGHT / 8;
+            for (uint32_t i = 0; i < 1; i++) {
+                struct PushConstants con = {.block_dim = 32, .level = i};
                 vkCmdPushConstants(cmdbuf, pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(con), &con);
                 vkCmdDispatch(cmdbuf, width, height, 1);
             }
+
+            // Bind descriptor sets and pipeline.
+            vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, d_pipeline.layout, 0U, 1U,
+                                    &desc_set_2, 0U, NULL);
+            vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_COMPUTE, d_pipeline.pipeline);
+            struct PushConstants con = {.block_dim = 32, .level = 0};
+            vkCmdPushConstants(cmdbuf, d_pipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0U, sizeof(con), &con);
+            vkCmdDispatch(cmdbuf, width, height, 1);
+
             texture_initialized = true;
         }
 
         // Transition swapchain image to transfer dest layout for clearing.
+        struct VkTexture* display_tex = &texture_de;
         VkImageMemoryBarrier image_barriers[2] = {
             // Image barrier for the swapchain image.
             [0] = {
@@ -178,7 +196,7 @@ int main() {
                 .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = texture.image,
+                .image = display_tex->image,
                 .subresourceRange = range,
             }
         };
@@ -204,7 +222,7 @@ int main() {
             },
             .dstOffsets = {{0, 0, 0}, {WIDTH, HEIGHT, 1}},
         };
-        vkCmdBlitImage(cmdbuf, texture.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        vkCmdBlitImage(cmdbuf, display_tex->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                        window.images[window.frame_index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                        1U, &image_copy, VK_FILTER_NEAREST);
 
@@ -252,7 +270,9 @@ int main() {
 
     // Cleanup.
     destroy_pipeline(&pipeline);
+    destroy_pipeline(&d_pipeline);
     destroy_texture(&texture);
+    destroy_texture(&texture_de);
     destroy_window(&window);
     destroy_context(&context);
     glfwTerminate();

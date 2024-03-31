@@ -10,6 +10,7 @@ struct VkTexture {
     uint32_t height;
     VkFormat format;
     VkDescriptorSetLayout desc_layout;
+    VkDescriptorSetLayout desc_layout_2;
     VkImage image;
     VkImageView image_view;
     VkImageLayout layout;
@@ -26,7 +27,7 @@ void transition_layout(VkCommandBuffer cmdbuf, struct VkTexture* texture, VkImag
                        VkAccessFlagBits src_access, VkAccessFlagBits dst_access,
                        VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage);
 
-void write_as_storage_descriptor(uint32_t num_sets, VkDescriptorSet* sets, const struct VkTexture* texture);
+void write_as_storage_descriptor(VkDescriptorSet set, const struct VkTexture** textures, uint32_t num_textures);
 
 void upload_image_data(VkCommandBuffer cmdbuf, uint8_t* data, uint32_t size, const struct VkTexture* texture);
 

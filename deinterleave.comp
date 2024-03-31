@@ -1,0 +1,23 @@
+#version 450 core
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout (set = 0, binding = 0, rgba8) uniform readonly image2D src_texture;
+layout (set = 0, binding = 1, rgba8) uniform writeonly image2D dst_texture;
+
+layout(push_constant, std140) uniform ComputeInfo {
+    int level;
+    int block_dim;
+};
+
+void main() {
+    int dim = int(pow(2, level + 1));
+    ivec2 quarter = ivec2(gl_GlobalInvocationID.xy) % dim;
+    ivec2 block_offset = ivec2(gl_GlobalInvocationID.xy) % ivec2(block_dim);
+    ivec2 block_coord = ivec2(gl_GlobalInvocationID.xy) / ivec2(block_dim);
+    ivec2 quarter_offset = block_offset / dim;
+
+    vec4 a = imageLoad(src_texture, ivec2(gl_GlobalInvocationID.xy));
+    ivec2 coord = block_coord * block_dim + quarter * ivec2(block_dim >> 1) + quarter_offset;
+    imageStore(dst_texture, coord, a);
+}

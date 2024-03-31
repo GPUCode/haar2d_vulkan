@@ -10,11 +10,11 @@ set(GLFW_INSTALL OFF)
 add_subdirectory(externals/glfw)
 
 add_executable(haar2d-vulkan main.c vk_device.h vk_device.c vk_swapchain.h vk_swapchain.c
-    vk_image.h vk_image.c haar2d_hor.comp
+    vk_image.h vk_image.c haar2d_hor.comp deinterleave.comp
     vk_pipeline.h vk_pipeline.c)
 add_compile_definitions(-DGLFW_INCLUDE_VULKAN)
 
-set(SHADER_FILES haar2d_hor.comp)
+set(SHADER_FILES haar2d_hor.comp deinterleave.comp)
 find_program(GLSLANG "glslang")
 
 set(SHADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)

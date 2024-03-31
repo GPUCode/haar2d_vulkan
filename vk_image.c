@@ -98,21 +98,33 @@ void create_texture(struct VkContext* context, struct VkTexture* out_texture,
 
     // Since in this demo there is a single descriptor layout that contains a single image
     // let's create it here for convenience.
-    const VkDescriptorSetLayoutBinding image_binding = {
-        .binding = 0U,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-        .descriptorCount = 1U,
-        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-        .pImmutableSamplers = NULL,
+    const VkDescriptorSetLayoutBinding image_bindings[2] = {
+        {
+            .binding = 0U,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            .descriptorCount = 1U,
+            .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            .pImmutableSamplers = NULL,
+        },
+        {
+            .binding = 1U,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            .descriptorCount = 1U,
+            .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            .pImmutableSamplers = NULL,
+        }
     };
 
-    const VkDescriptorSetLayoutCreateInfo desc_layout_ci = {
+    VkDescriptorSetLayoutCreateInfo desc_layout_ci = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .pNext = NULL,
         .bindingCount = 1U,
-        .pBindings = &image_binding,
+        .pBindings = image_bindings,
     };
     vkCreateDescriptorSetLayout(context->device, &desc_layout_ci, NULL, &out_texture->desc_layout);
+
+    desc_layout_ci.bindingCount = 2U;
+    vkCreateDescriptorSetLayout(context->device, &desc_layout_ci, NULL, &out_texture->desc_layout_2);
 
     // Also do the same for the staging buffer. In real applications this should be a global buffer
     const uint32_t buffer_size = 16 * 1024 * 1024;
@@ -180,28 +192,27 @@ void transition_layout(VkCommandBuffer cmdbuf, struct VkTexture* texture, VkImag
     texture->layout = new_layout;
 }
 
-void write_as_storage_descriptor(uint32_t num_sets, VkDescriptorSet* sets, const struct VkTexture* texture) {
-    const VkDescriptorImageInfo image_info = {
-        .sampler = NULL,
-        .imageView = texture->image_view,
-        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-    };
-
+void write_as_storage_descriptor(VkDescriptorSet set, const struct VkTexture** textures, uint32_t num_textures) {
+    VkDescriptorImageInfo image_infos[8];
     VkWriteDescriptorSet write_sets[8];
-    for (uint32_t i = 0; i < num_sets; ++i) {
+    for (uint32_t i = 0; i < num_textures; ++i) {
+        image_infos[i].sampler = NULL;
+        image_infos[i].imageView = textures[i]->image_view;
+        image_infos[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
         write_sets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write_sets[i].pNext = NULL;
-        write_sets[i].dstSet = sets[i];
-        write_sets[i].dstBinding = 0U;
+        write_sets[i].dstSet = set;
+        write_sets[i].dstBinding = i;
         write_sets[i].dstArrayElement = 0U;
         write_sets[i].descriptorCount = 1U;
         write_sets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        write_sets[i].pImageInfo = &image_info;
+        write_sets[i].pImageInfo = &image_infos[i];
         write_sets[i].pBufferInfo = NULL;
         write_sets[i].pTexelBufferView = NULL;
     }
 
-    vkUpdateDescriptorSets(texture->context->device, num_sets, write_sets, 0U, NULL);
+    vkUpdateDescriptorSets(textures[0]->context->device, num_textures, write_sets, 0U, NULL);
 }
 
 void upload_image_data(VkCommandBuffer cmdbuf, uint8_t* data, uint32_t size, const struct VkTexture* texture) {
@@ -227,6 +238,7 @@ void destroy_texture(const struct VkTexture* texture) {
     const VkDevice device = texture->context->device;
     vkUnmapMemory(device, texture->staging_memory);
     vkDestroyDescriptorSetLayout(device, texture->desc_layout, NULL);
+    vkDestroyDescriptorSetLayout(device, texture->desc_layout_2, NULL);
     vkDestroyBuffer(device, texture->staging_buffer, NULL);
     vkDestroyImageView(device, texture->image_view, NULL);
     vkFreeMemory(device, texture->staging_memory, NULL);
